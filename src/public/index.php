@@ -11,9 +11,8 @@ require __DIR__ . '/../../vendor/autoload.php';
 // Crear una nueva instancia de la aplicación Slim
 $app = AppFactory::create();
 
-// Incluir archivos que contienen definiciones de rutas personalizadas
-require_once __DIR__ . '/login.php';
-require_once __DIR__ . '/registro.php';
+require_once __DIR__ . '/../config/routes/routes.php'; //Importa las rutas de la app.
+
 
 // Registrar las rutas definidas en login.php y registro.php
 login($app);     // Registra la ruta POST /login
