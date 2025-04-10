@@ -1,39 +1,42 @@
 <?php
-// Importar interfaces necesarias para manejar solicitudes y respuestas HTTP
+// Importamos las interfaces necesarias de PSR para manejar las solicitudes y respuestas
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
-// Importar la fábrica para crear la aplicación Slim
+
+// Importamos la clase que nos permite crear la app de Slim
 use Slim\Factory\AppFactory;
 
-// Cargar el autoloader de Composer (ubicado dos niveles arriba desde este archivo)
+// Cargamos el autoloader de Composer para poder usar todas las dependencias (Slim, JWT, etc.)
 require __DIR__ . '/../../vendor/autoload.php';
 
-// Crear una nueva instancia de la aplicación Slim
+// Creamos una nueva instancia de la aplicación Slim
 $app = AppFactory::create();
 
-require_once __DIR__ . '/../config/routes/routes.php'; //Importa las rutas de la app.
+// Agregamos el middleware de enrutamiento (Slim lo necesita para manejar rutas)
+$app->addRoutingMiddleware();
 
+// Agregamos el middleware para parsear el cuerpo de las peticiones (JSON, etc.)
+$app->addBodyParsingMiddleware();
 
-// Registrar las rutas definidas en login.php y registro.php
-login($app);     // Registra la ruta POST /login
-registro($app);  // Registra la ruta POST /registro
+// Agregamos el middleware para manejar errores (muestra excepciones y detalles en pantalla)
+$app->addErrorMiddleware(true, true, true);
 
-// Ruta GET raíz ('/') que devuelve texto plano "Hola mundo"
-$app->get('/', function (Request $request, Response $response, $args) {
-    // Escribe "Hola mundo" en el cuerpo de la respuesta
+// ✅ Registramos todas las rutas definidas en el archivo routes.php
+(require __DIR__ . '/../config/routes/routes.php')($app); // Importa la función y la ejecuta
+
+// ✔ Ruta de prueba raíz ('/') que devuelve texto plano
+$app->get('/', function (Request $request, Response $response) {
     $response->getBody()->write("Hola mundo");
-    return $response;  // Devuelve la respuesta
+    return $response;
 });
 
-// Ruta GET '/hola' que devuelve un JSON con un mensaje
-$app->get('/hola', function (Request $request, Response $response, $args) {
-    // Crear un arreglo con el mensaje
+// ✔ Ruta de prueba '/hola' que devuelve un mensaje en formato JSON
+$app->get('/hola', function (Request $request, Response $response) {
     $data = ["mensaje" => "Hola mundo API"];
-    // Escribir el JSON en el cuerpo de la respuesta
     $response->getBody()->write(json_encode($data));
-    // Añadir el header 'Content-Type: application/json'
     return $response->withHeader('Content-Type', 'application/json');
 });
 
-// Ejecutar la aplicación Slim (esto debe estar al final del archivo)
+// 🚀 Ejecutamos la aplicación Slim (esto siempre debe ir al final)
 $app->run();
+
