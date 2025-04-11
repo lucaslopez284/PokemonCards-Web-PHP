@@ -17,5 +17,5 @@ function routes($app) {
     estadisticas($app);
 
     // Rutas de mazos (todas protegidas con JWT)
-    mazo($app);         
+    //mazo($app);         
 }
