@@ -22,7 +22,9 @@ $app->addBodyParsingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 
 // ✅ Registramos todas las rutas definidas en el archivo routes.php
-(require __DIR__ . '/../config/routes/routes.php')($app); // Importa la función y la ejecuta
+require_once __DIR__ . '/../config/routes/routes.php';
+routes($app); // <-- Llamás a la función directamente
+
 
 // ✔ Ruta de prueba raíz ('/') que devuelve texto plano
 $app->get('/', function (Request $request, Response $response) {
