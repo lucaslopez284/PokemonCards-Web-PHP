@@ -194,34 +194,53 @@ function actualizarMazo(App $app) {
 
 // ---------------------------------------------------------------------------
 // RUTA: GET /cartas
-// Devuelve todas las cartas disponibles, con posibilidad de filtrar por atributo
+// Devuelve todas las cartas disponibles, con posibilidad de filtrar por atributo y nombre
 // ---------------------------------------------------------------------------
 function listarCartas(App $app) {
+    // Definimos la ruta GET /cartas
     $app->get('/cartas', function (Request $request, Response $response) {
-        // Obtenemos los parámetros de la query
+        // Obtenemos los parámetros de la query string (si existen)
         $params = $request->getQueryParams();
-        $atributo = $params['atributo'] ?? null;
+        $atributo = $params['atributo'] ?? null; // Filtro por atributo
+        $nombre = $params['nombre'] ?? null;     // Filtro por nombre
 
         try {
-            // Conexión activa
+            // Obtenemos la conexión a la base de datos usando la clase DB
             $pdo = DB::getConnection();
 
-            // Si hay filtro por atributo, lo aplicamos
+            // Armamos la consulta base y sus condiciones dinámicamente
+            $sql = "SELECT * FROM carta";
+            $conditions = [];
+            $values = [];
+
+            // Si se pasa un atributo como filtro
             if ($atributo) {
-                $stmt = $pdo->prepare("SELECT * FROM carta WHERE atributo_id = ?");
-                $stmt->execute([$atributo]);
-            } else {
-                // Si no hay filtro, traemos todas las cartas
-                $stmt = $pdo->query("SELECT * FROM carta");
+                $conditions[] = "atributo_id = ?";
+                $values[] = $atributo;
             }
 
-            // Devolvemos el resultado en JSON
+            // Si se pasa un nombre como filtro
+            if ($nombre) {
+                $conditions[] = "nombre LIKE ?";
+                $values[] = "%" . $nombre . "%"; // Búsqueda parcial por nombre
+            }
+
+            // Si hay condiciones, las unimos con AND
+            if (!empty($conditions)) {
+                $sql .= " WHERE " . implode(" AND ", $conditions);
+            }
+
+            // Preparamos y ejecutamos la consulta
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($values);
+
+            // Obtenemos las cartas y las devolvemos como JSON
             $cartas = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $response->getBody()->write(json_encode($cartas));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
         } catch (PDOException $e) {
-            // Si hay un error de base
+            // Manejamos cualquier error de base de datos
             $response->getBody()->write(json_encode(["error" => "Error al obtener cartas: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
