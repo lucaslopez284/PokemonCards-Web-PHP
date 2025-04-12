@@ -22,8 +22,8 @@ function crearMazo(App $app) {
         // Lo decodificamos desde JSON a un arreglo asociativo
         $data = json_decode($body, true);
 
-        // Verificamos que venga el ID de usuario y el array de cartas
-        if (!isset($data['usuario_id'], $data['cartas']) || !is_array($data['cartas'])) {
+        // Verificamos que vengan el ID de usuario, el nombre del mazo y el array de cartas
+        if (!isset($data['usuario_id'], $data['nombre'], $data['cartas']) || !is_array($data['cartas'])) {
             $response->getBody()->write(json_encode(["error" => "Datos inválidos"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
@@ -49,9 +49,9 @@ function crearMazo(App $app) {
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
 
-            // Insertamos un nuevo mazo vacío para el usuario
-            $stmt = $pdo->prepare("INSERT INTO mazo (usuario_id) VALUES (?)");
-            $stmt->execute([$data['usuario_id']]);
+            // Insertamos un nuevo mazo con el nombre enviado y el ID de usuario
+            $stmt = $pdo->prepare("INSERT INTO mazo (usuario_id, nombre) VALUES (?, ?)");
+            $stmt->execute([$data['usuario_id'], $data['nombre']]);
 
             // Obtenemos el ID del mazo recién creado
             $mazoId = $pdo->lastInsertId();
@@ -63,8 +63,11 @@ function crearMazo(App $app) {
                 $stmt->execute([$mazoId, $cartaId]);
             }
 
-            // Devolvemos el ID del mazo nuevo
-            $response->getBody()->write(json_encode(["mazo_id" => $mazoId]));
+            // Devolvemos el ID del mazo nuevo y su nombre
+            $response->getBody()->write(json_encode([
+                "mazo_id" => $mazoId,
+                "nombre" => $data['nombre']
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
 
         } catch (PDOException $e) {
@@ -74,6 +77,8 @@ function crearMazo(App $app) {
         }
     });
 }
+
+
 
 
 // ---------------------------------------------------------------------------
