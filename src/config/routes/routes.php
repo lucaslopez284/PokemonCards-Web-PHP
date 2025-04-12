@@ -10,12 +10,16 @@ require_once __DIR__ . '/../controllers/mazoController.php';          // Funcion
  */
 function routes($app) {
     // Rutas de autenticación
-    login($app);
-    registro($app);
+    login($app);            // Ruta POST /login
+    registro($app);         // Ruta POST /registro
 
     // Ruta GET /estadisticas (no requiere login)
-    estadisticas($app);
+    estadisticas($app);     // Ruta GET /estadisticas
 
     // Rutas de mazos (todas protegidas con JWT)
-    //mazo($app);         
+    crearMazo($app);        // Ruta POST /mazos
+    eliminarMazo($app);     // Ruta DELETE /mazos/{mazo}
+    listarMazos($app);      // Ruta GET /usuarios/{usuario}/mazos
+    actualizarMazo($app);   // Ruta PUT /mazos/{mazo}
+    listarCartas($app);     // Ruta GET /cartas
 }
