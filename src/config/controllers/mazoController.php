@@ -138,12 +138,25 @@ function eliminarMazo(App $app) {
 // ---------------------------------------------------------------------------
 function listarMazos(App $app) {
     $app->get('/usuarios/{usuario}/mazos', function (Request $request, Response $response, array $args) {
-        // Obtenemos el ID del usuario desde la ruta
-        $usuarioId = $args['usuario'];
+        // Obtenemos el nombre de usuario desde la ruta
+        $nombreUsuario = $args['usuario'];
 
         try {
-            // Conexión a la base
+            // Conexión a la base de datos
             $pdo = DB::getConnection();
+
+            // Obtenemos el ID del usuario a partir del nombre
+            $stmt = $pdo->prepare("SELECT id FROM usuario WHERE usuario = ?");
+            $stmt->execute([$nombreUsuario]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Si el usuario no existe, devolvemos error
+            if (!$usuario) {
+                $response->getBody()->write(json_encode(["error" => "Usuario no encontrado"]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+
+            $usuarioId = $usuario['id'];
 
             // Traemos todos los mazos de ese usuario
             $stmt = $pdo->prepare("SELECT * FROM mazo WHERE usuario_id = ?");
@@ -159,13 +172,13 @@ function listarMazos(App $app) {
             $response->getBody()->write(json_encode(["error" => "Error al obtener mazos: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    })->add(new JwtMiddleware()); // CORRECCIÓN: Aplicar middleware con ->add()
+    })->add(new JwtMiddleware()); // Middleware JWT aplicado
 }
 
 
 // ---------------------------------------------------------------------------
 // RUTA: PUT /mazos/{mazo}
-// Permite actualizar las cartas de un mazo existente
+// Permite actualizar el nombre las cartas de un mazo existente
 // ---------------------------------------------------------------------------
 function actualizarMazo(App $app) {
     $app->put('/mazos/{mazo}', function (Request $request, Response $response, array $args) {
@@ -176,37 +189,44 @@ function actualizarMazo(App $app) {
         $body = (string) $request->getBody();
         $data = json_decode($body, true);
 
-        // Verificamos que vengan cartas válidas
+        // Verificamos que vengan cartas válidas (hasta 5)
         if (!isset($data['cartas']) || !is_array($data['cartas']) || count($data['cartas']) > 5) {
             $response->getBody()->write(json_encode(["error" => "Se deben enviar hasta 5 cartas"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
         try {
-            // Conectamos a la base
+            // Conectamos a la base de datos
             $pdo = DB::getConnection();
 
-            // Borramos cartas anteriores
+            // Si se recibió un nuevo nombre, lo actualizamos
+            if (isset($data['nombre']) && !empty(trim($data['nombre']))) {
+                $stmt = $pdo->prepare("UPDATE mazo SET nombre = ? WHERE id = ?");
+                $stmt->execute([$data['nombre'], $mazoId]);
+            }
+
+            // Eliminamos las cartas anteriores del mazo
             $stmt = $pdo->prepare("DELETE FROM mazo_carta WHERE mazo_id = ?");
             $stmt->execute([$mazoId]);
 
-            // Insertamos las nuevas cartas
+            // Insertamos las nuevas cartas asociadas al mazo
             $stmt = $pdo->prepare("INSERT INTO mazo_carta (mazo_id, carta_id, estado) VALUES (?, ?, 'activo')");
             foreach ($data['cartas'] as $cartaId) {
                 $stmt->execute([$mazoId, $cartaId]);
             }
 
-            // Confirmamos la actualización
+            // Enviamos un mensaje de éxito
             $response->getBody()->write(json_encode(["mensaje" => "Mazo actualizado correctamente"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
         } catch (PDOException $e) {
-            // Mostramos errores
+            // Mostramos el error en caso de que ocurra
             $response->getBody()->write(json_encode(["error" => "Error al actualizar el mazo: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    })->add(new JwtMiddleware()); // CORRECCIÓN: Aplicar middleware con ->add()
+    })->add(new JwtMiddleware()); // Aplicamos el middleware JWT
 }
+
 
 
 // ---------------------------------------------------------------------------
