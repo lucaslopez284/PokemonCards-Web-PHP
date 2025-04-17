@@ -4,6 +4,10 @@ require_once __DIR__ . '/../controllers/userController.php';           // Regist
 require_once __DIR__ . '/../controllers/estadisticaController.php';   // Estadísticas globales
 require_once __DIR__ . '/../controllers/mazoController.php';          // Funciones relacionadas a mazos
 
+// Importo el middleware JWT para proteger rutas
+use App\config\middlewares\JwtMiddleware;  
+
+
 /**
  * Esta función se llama desde index.php y se encarga de registrar todas las rutas que usa la app.
  * Le paso como parámetro la instancia de Slim\App para poder definir endpoints.

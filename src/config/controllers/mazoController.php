@@ -9,38 +9,54 @@ use Slim\App;
 // Incluimos nuestra clase de conexión a la base de datos (ubicada en config/DB.php)
 require_once __DIR__ . '/../DB.php';
 
+// Middleware JWT para la autenticación 
+use App\config\middlewares\JwtMiddleware; 
+
 
 // ---------------------------------------------------------------------------
 // RUTA: POST /mazos
 // Permite crear un nuevo mazo para un usuario con hasta 5 cartas válidas
 // ---------------------------------------------------------------------------
 function crearMazo(App $app) {
+    // Definimos la ruta POST para crear un nuevo mazo
     $app->post('/mazos', function (Request $request, Response $response) {
+        // Obtenemos el ID del usuario desde los atributos, lo ha inyectado el middleware JWT
+        
+        $usuarioId = $request->getAttribute('usuario_id');
+        
+        // Verificamos si el usuario_id está presente. Si no, devolvemos un error 401
+        if (!$usuarioId) {
+            $response->getBody()->write(json_encode(["error" => "No se pudo obtener el ID del usuario"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+        }
+
         // Leemos el cuerpo de la solicitud como texto
         $body = (string) $request->getBody();
 
         // Lo decodificamos desde JSON a un arreglo asociativo
         $data = json_decode($body, true);
 
-        // Verificamos que vengan el ID de usuario, el nombre del mazo y el array de cartas
-        if (!isset($data['usuario_id'], $data['nombre'], $data['cartas']) || !is_array($data['cartas'])) {
+        // Verificamos que vengan el nombre del mazo y el array de cartas
+        if (!isset($data['nombre'], $data['cartas']) || !is_array($data['cartas'])) {
+            // Si faltan datos o los datos son inválidos, devolvemos error 400
             $response->getBody()->write(json_encode(["error" => "Datos inválidos"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
         // Verificamos que no haya más de 5 cartas
         if (count($data['cartas']) > 5) {
+            // Si hay más de 5 cartas, devolvemos error 400
             $response->getBody()->write(json_encode(["error" => "Un mazo puede tener hasta 5 cartas"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
         try {
-            // Obtenemos la conexión a la base de datos
+            // Obtenemos la conexión a la base de datos usando tu clase DB
             $pdo = DB::getConnection();
 
             // Verificamos si el usuario ya tiene 3 mazos creados
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM mazo WHERE usuario_id = ?");
-            $stmt->execute([$data['usuario_id']]);
+            $stmt->execute([$usuarioId]);
             $count = $stmt->fetchColumn();
 
             // Si ya tiene 3, devolvemos error
@@ -51,7 +67,7 @@ function crearMazo(App $app) {
 
             // Insertamos un nuevo mazo con el nombre enviado y el ID de usuario
             $stmt = $pdo->prepare("INSERT INTO mazo (usuario_id, nombre) VALUES (?, ?)");
-            $stmt->execute([$data['usuario_id'], $data['nombre']]);
+            $stmt->execute([$usuarioId, $data['nombre']]);
 
             // Obtenemos el ID del mazo recién creado
             $mazoId = $pdo->lastInsertId();
@@ -59,11 +75,12 @@ function crearMazo(App $app) {
             // Insertamos cada carta en la tabla mazo_carta con estado 'activo'
             $stmt = $pdo->prepare("INSERT INTO mazo_carta (mazo_id, carta_id, estado) VALUES (?, ?, 'activo')");
 
+            // Recorremos las cartas recibidas y las insertamos en la tabla mazo_carta
             foreach ($data['cartas'] as $cartaId) {
                 $stmt->execute([$mazoId, $cartaId]);
             }
 
-            // Devolvemos el ID del mazo nuevo y su nombre
+            // Devolvemos el ID del mazo nuevo y su nombre en la respuesta
             $response->getBody()->write(json_encode([
                 "mazo_id" => $mazoId,
                 "nombre" => $data['nombre']
@@ -75,7 +92,7 @@ function crearMazo(App $app) {
             $response->getBody()->write(json_encode(["error" => "Error en la base de datos: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    });
+    })->add(new JwtMiddleware()); // CORRECCIÓN: Aplicar middleware con ->add()
 }
 
 
@@ -111,7 +128,7 @@ function eliminarMazo(App $app) {
             $response->getBody()->write(json_encode(["error" => "Error al eliminar el mazo: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    });
+    })->add(new JwtMiddleware()); // CORRECCIÓN: Aplicar middleware con ->add()
 }
 
 
@@ -142,7 +159,7 @@ function listarMazos(App $app) {
             $response->getBody()->write(json_encode(["error" => "Error al obtener mazos: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    });
+    })->add(new JwtMiddleware()); // CORRECCIÓN: Aplicar middleware con ->add()
 }
 
 
@@ -188,7 +205,7 @@ function actualizarMazo(App $app) {
             $response->getBody()->write(json_encode(["error" => "Error al actualizar el mazo: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    });
+    })->add(new JwtMiddleware()); // CORRECCIÓN: Aplicar middleware con ->add()
 }
 
 
@@ -244,5 +261,5 @@ function listarCartas(App $app) {
             $response->getBody()->write(json_encode(["error" => "Error al obtener cartas: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    });
+    })->add(new JwtMiddleware()); // CORRECCIÓN: Aplicar middleware con ->add()
 }

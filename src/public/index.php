@@ -26,6 +26,7 @@ require_once __DIR__ . '/../config/routes/routes.php';
 routes($app); // <-- Llamás a la función directamente
 
 
+
 // ✔ Ruta de prueba raíz ('/') que devuelve texto plano
 $app->get('/', function (Request $request, Response $response) {
     $response->getBody()->write("Hola mundo");

@@ -1,77 +1,75 @@
 <?php
-// Declaramos el namespace según tu estructura
-namespace App\Middleware;
+// Definimos el namespace donde se encuentra este middleware
+namespace App\config\middlewares;
 
-// Importamos las clases necesarias
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
+// Importamos las interfaces necesarias para trabajar con PSR-7 y Slim
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as Handler;
 use Slim\Psr7\Response as SlimResponse;
 use PDO;
 
+// Definimos la clase JwtMiddleware que actuará como middleware de autenticación
 class JwtMiddleware
 {
-    // Método principal que se ejecuta cuando se usa el middleware
+    // Método mágico __invoke para que esta clase pueda ser usada como callable middleware
     public function __invoke(Request $request, Handler $handler): Response
     {
-        // Obtenemos el encabezado Authorization de la solicitud
+        // Obtenemos el encabezado 'Authorization' de la solicitud HTTP
         $authHeader = $request->getHeaderLine('Authorization');
 
-        // Verificamos que el encabezado Authorization exista y comience con "Bearer "
+        // Verificamos que el encabezado comience con 'Bearer ', de lo contrario rechazamos
         if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            // Si no hay token o el formato es incorrecto, respondemos con 401
             return $this->unauthorizedResponse("Token no proporcionado o formato incorrecto");
         }
 
-        // Extraemos el token eliminando "Bearer " del encabezado
+        // Extraemos el token quitando el prefijo 'Bearer '
         $token = str_replace('Bearer ', '', $authHeader);
 
         try {
-            // Decodificamos el token con la clave secreta y el algoritmo HS256
-            $decoded = JWT::decode($token, new Key("mi_clave_secreta", 'HS256'));
-
-            // Obtenemos el ID del usuario del payload del token
-            $usuarioId = $decoded->usuario_id;
-
-            // Conectamos a la base de datos
-            $pdo = new PDO('mysql:host=localhost;dbname=basepokemon', 'root', '');
+            // Definimos las credenciales de conexión a la base de datos
+            $host = 'localhost';
+            $dbname = 'basepokemon';
+            $user = 'root';
+            $pass = '';
+            // Creamos una nueva conexión PDO a la base de datos
+            $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
+            // Configuramos PDO para lanzar excepciones en caso de errores
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-            // Buscamos el token y la fecha de vencimiento del usuario en la base de datos
-            $stmt = $pdo->prepare("SELECT token, vencimiento_token FROM usuario WHERE id = ?");
-            $stmt->execute([$usuarioId]);
+            // Preparamos la consulta para verificar si el token existe y no está vencido
+            $stmt = $pdo->prepare("SELECT id FROM usuario WHERE token = ? AND vencimiento_token > NOW()");
+            // Ejecutamos la consulta pasando el token como parámetro
+            $stmt->execute([$token]);
+            // Obtenemos el resultado como un arreglo asociativo
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // Validamos que:
-            // 1. El usuario exista
-            // 2. El token coincida con el que está guardado
-            // 3. El token no esté vencido
-            if (
-                !$user ||
-                $user['token'] !== $token ||
-                (isset($user['vencimiento_token']) && strtotime($user['vencimiento_token']) < time())
-            ) {
+            // Si no encontramos un usuario válido con ese token, devolvemos error
+            if (!$user) {
                 return $this->unauthorizedResponse("Token inválido o vencido");
             }
 
-            // Si todo está bien, inyectamos el usuario_id en la request
-            $request = $request->withAttribute('usuario_id', $usuarioId);
+            // Si el token es válido, agregamos el ID del usuario a los atributos de la request
+            $request = $request->withAttribute('usuario_id', $user['id']);
 
-            // Continuamos con el siguiente middleware o la ruta
+            // Pasamos la request al siguiente middleware o a la ruta correspondiente
             return $handler->handle($request);
 
         } catch (\Exception $e) {
-            // Si ocurre algún error al decodificar el token, devolvemos error 401
-            return $this->unauthorizedResponse("Token inválido: " . $e->getMessage());
+            // Si ocurre un error durante el proceso, respondemos con error 401 y el mensaje
+            return $this->unauthorizedResponse("Error al verificar el token: " . $e->getMessage());
         }
     }
 
-    // Función auxiliar para generar respuestas 401 (no autorizado)
+    // Función privada auxiliar que devuelve una respuesta JSON con código 401
     private function unauthorizedResponse($mensaje): Response
     {
+        // Creamos una nueva respuesta Slim
         $response = new SlimResponse();
+        // Escribimos un mensaje de error en formato JSON en el cuerpo de la respuesta
         $response->getBody()->write(json_encode(['error' => $mensaje]));
+        // Configuramos el header como JSON y el status HTTP como 401 (no autorizado)
         return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
     }
 }
