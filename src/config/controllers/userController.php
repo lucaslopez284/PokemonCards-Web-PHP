@@ -144,6 +144,14 @@ function registro(App $app) {
     });
 
 }
+
+// -------------------------------------------------------------
+// RUTA: GET /usuarios/{usuario}
+// Permite obtener la información de un usuario específico.
+// Devuelve los detalles del usuario solicitados en formato JSON.
+// Requiere que el usuario esté autenticado mediante JWT.
+// -------------------------------------------------------------
+
 function obtenerUsuario(App $app) {
     $app->get('/usuarios/{usuario}', function (Request $request, Response $response, array $args) {
         // Obtenemos el ID del usuario desde los atributos, lo ha inyectado el middleware JWT
@@ -185,6 +193,12 @@ function obtenerUsuario(App $app) {
     })->add(new JwtMiddleware()); // Aplicamos el middleware JwtMiddleware
 }
 
+// -------------------------------------------------------------
+// RUTA: PUT /usuarios/{usuario}
+// Permite editar la información de un usuario específico.
+// Requiere que el usuario esté autenticado mediante JWT.
+// Los cambios se aplican a los detalles del usuario en la base de datos.
+// -------------------------------------------------------------
 
 function editarUsuario(App $app) {
     $app->put('/usuarios/{usuario}', function (Request $request, Response $response, array $args) {
