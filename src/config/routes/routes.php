@@ -17,6 +17,10 @@ function routes($app) {
     login($app);            // Ruta POST /login
     registro($app);         // Ruta POST /registro
 
+    // Rutas para obtener y editar usuario (protegidas con JWT)
+    obtenerUsuario($app);   // Ruta GET /usuarios/{usuario}
+    editarUsuario($app);    // Ruta PUT /usuarios/{usuario}
+
     // Ruta GET /estadisticas (no requiere login)
     estadisticas($app);     // Ruta GET /estadisticas
 

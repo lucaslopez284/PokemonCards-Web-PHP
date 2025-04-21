@@ -13,6 +13,10 @@ use Slim\App;
 // No usa namespace, así que con require_once es suficiente
 require_once __DIR__ . '/../DB.php';
 
+
+// Middleware JWT para la autenticación 
+use App\config\middlewares\JwtMiddleware;
+
 // -------------------------------------------------------------
 // RUTA: POST /login
 // Permite a un usuario autenticarse con su nombre de usuario y contraseña.
@@ -138,4 +142,119 @@ function registro(App $app) {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
+
+}
+function obtenerUsuario(App $app) {
+    $app->get('/usuarios/{usuario}', function (Request $request, Response $response, array $args) {
+        // Obtenemos el ID del usuario desde los atributos, lo ha inyectado el middleware JWT
+        $usuarioId = $request->getAttribute('usuario_id');
+        
+        // Verificamos si el usuario_id está presente. Si no, devolvemos un error 401
+        if (!$usuarioId) {
+            $response->getBody()->write(json_encode(["error" => "No se pudo obtener el ID del usuario"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+        }
+
+        // Obtenemos el nombre de usuario de los parámetros de la ruta
+        $usuarioParam = $args['usuario'];
+
+        try {
+            // Conectamos a la base de datos
+            $pdo = DB::getConnection();
+
+            // Obtenemos los datos del usuario desde la base
+            $stmt = $pdo->prepare("SELECT id, nombre, usuario FROM usuario WHERE id = ?");
+            $stmt->execute([$usuarioId]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Verificamos que el nombre de usuario coincida con el que se solicita
+            if (!$usuario || $usuario['usuario'] !== $usuarioParam) {
+                $response->getBody()->write(json_encode(["error" => "Acceso denegado"]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+
+            // Devolvemos la información del usuario
+            $response->getBody()->write(json_encode($usuario));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (Exception $e) {
+            // En caso de error con la base
+            $response->getBody()->write(json_encode(["error" => "Error en la base de datos: " . $e->getMessage()]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    })->add(new JwtMiddleware()); // Aplicamos el middleware JwtMiddleware
+}
+
+
+function editarUsuario(App $app) {
+    $app->put('/usuarios/{usuario}', function (Request $request, Response $response, array $args) {
+        // Obtenemos el ID del usuario desde los atributos, lo ha inyectado el middleware JWT
+        $usuarioId = $request->getAttribute('usuario_id');
+        
+        // Verificamos si el usuario_id está presente. Si no, devolvemos un error 401
+        if (!$usuarioId) {
+            $response->getBody()->write(json_encode(["error" => "No se pudo obtener el ID del usuario"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+        }
+
+        // Obtenemos el nombre de usuario de los parámetros de la ruta
+        $usuarioParam = $args['usuario'];
+
+        // Leemos el cuerpo de la solicitud como string
+        $body = (string) $request->getBody();
+
+        // Convertimos el JSON en un array asociativo
+        $data = json_decode($body, true);
+
+        // Validamos que se hayan enviado al menos nombre o password
+        if ($data === null || (!isset($data['nombre']) && !isset($data['password']))) {
+            $response->getBody()->write(json_encode(["error" => "No se enviaron datos para actualizar"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        try {
+            // Conectamos a la base de datos
+            $pdo = DB::getConnection();
+
+            // Obtenemos al usuario para validar que sea el correcto
+            $stmt = $pdo->prepare("SELECT usuario FROM usuario WHERE id = ?");
+            $stmt->execute([$usuarioId]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$usuario || $usuario['usuario'] !== $usuarioParam) {
+                $response->getBody()->write(json_encode(["error" => "Acceso denegado"]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+
+            // Construimos el SQL dinámico según los campos enviados
+            $campos = [];
+            $valores = [];
+
+            if (isset($data['nombre'])) {
+                $campos[] = "nombre = ?";
+                $valores[] = $data['nombre'];
+            }
+
+            if (isset($data['password'])) {
+                $campos[] = "password = ?";
+                $valores[] = password_hash($data['password'], PASSWORD_BCRYPT);
+            }
+
+            // Agregamos el ID del usuario al final para el WHERE
+            $valores[] = $usuarioId;
+
+            // Ejecutamos la actualización
+            $stmt = $pdo->prepare("UPDATE usuario SET " . implode(', ', $campos) . " WHERE id = ?");
+            $stmt->execute($valores);
+
+            // Confirmamos la actualización
+            $response->getBody()->write(json_encode(["mensaje" => "Usuario actualizado correctamente"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (Exception $e) {
+            // En caso de error con la base
+            $response->getBody()->write(json_encode(["error" => "Error en la base de datos: " . $e->getMessage()]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    })->add(new JwtMiddleware()); // Aplicamos el middleware JwtMiddleware
 }
