@@ -3,6 +3,9 @@
 require_once __DIR__ . '/../controllers/userController.php';           // Registro y login
 require_once __DIR__ . '/../controllers/estadisticaController.php';   // Estadísticas globales
 require_once __DIR__ . '/../controllers/mazoController.php';          // Funciones relacionadas a mazos
+require_once __DIR__ . '/../controllers/partidaController.php';       // Funciones relacionadas a partidas
+
+
 
 // Importo el middleware JWT para proteger rutas
 use App\config\middlewares\JwtMiddleware;  
@@ -20,6 +23,10 @@ function routes($app) {
     // Rutas para obtener y editar usuario (protegidas con JWT)
     obtenerUsuario($app);   // Ruta GET /usuarios/{usuario}
     editarUsuario($app);    // Ruta PUT /usuarios/{usuario}
+
+    // Rutas de partidas (protegidas con JWT)
+    crearPartida($app);       // Ruta POST /partidas
+
 
     // Ruta GET /estadisticas (no requiere login)
     estadisticas($app);     // Ruta GET /estadisticas
