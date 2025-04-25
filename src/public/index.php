@@ -22,7 +22,7 @@ $app->addBodyParsingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 
 // ✅ Registramos todas las rutas definidas en el archivo routes.php
-require_once __DIR__ . '/../config/routes/routes.php';
+require_once __DIR__ . '/../routes/routes.php';
 routes($app); // <-- Llamás a la función directamente
 
 

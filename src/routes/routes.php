@@ -9,7 +9,7 @@ require_once __DIR__ . '/../controllers/jugadas/jugadaController.php'; // Funcio
 
 
 // Importo el middleware JWT para proteger rutas
-use App\config\middlewares\JwtMiddleware;  
+use App\middlewares\JwtMiddleware;  
 
 
 /**

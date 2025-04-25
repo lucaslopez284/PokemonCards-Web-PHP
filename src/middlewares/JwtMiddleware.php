@@ -1,6 +1,6 @@
 <?php
 // Definimos el namespace donde se encuentra este middleware
-namespace App\config\middlewares;
+namespace App\middlewares;
 
 // Importamos las interfaces necesarias para trabajar con PSR-7 y Slim
 use Psr\Http\Message\ResponseInterface as Response;

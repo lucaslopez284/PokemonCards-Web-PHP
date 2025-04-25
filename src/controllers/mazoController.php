@@ -7,10 +7,11 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\App;
 
 // Incluimos nuestra clase de conexión a la base de datos (ubicada en config/DB.php)
-require_once __DIR__ . '/../DB.php';
+require_once __DIR__ . '/../config/DB.php';
+
 
 // Middleware JWT para la autenticación 
-use App\config\middlewares\JwtMiddleware; 
+use App\middlewares\JwtMiddleware;
 
 
 // ---------------------------------------------------------------------------

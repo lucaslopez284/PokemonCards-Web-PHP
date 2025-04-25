@@ -1,6 +1,7 @@
 <?php
 // Incluyo la clase DB que me da la conexión a la base de datos
-require_once __DIR__ . '/../DB.php';
+require_once __DIR__ . '/../config/DB.php';
+
 
 // Defino la función que registra la ruta GET /estadisticas
 function estadisticas($app) {

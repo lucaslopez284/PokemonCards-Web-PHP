@@ -1,6 +1,6 @@
 <?php
 // Importo la clase DB para usar la conexión a la base de datos
-require_once __DIR__ . '/../../DB.php';
+require_once __DIR__ . '/../../config/DB.php';;
 
 /**
  * Función que realiza una jugada automática del servidor.
