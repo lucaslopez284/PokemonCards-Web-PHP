@@ -4,6 +4,7 @@ require_once __DIR__ . '/../controllers/userController.php';           // Regist
 require_once __DIR__ . '/../controllers/estadisticaController.php';   // Estadísticas globales
 require_once __DIR__ . '/../controllers/mazoController.php';          // Funciones relacionadas a mazos
 require_once __DIR__ . '/../controllers/partidaController.php';       // Funciones relacionadas a partidas
+require_once __DIR__ . '/../controllers/jugadas/jugadaController.php'; // Funciones relacionadas a jugadas
 
 
 
@@ -26,6 +27,10 @@ function routes($app) {
 
     // Rutas de partidas (protegidas con JWT)
     crearPartida($app);       // Ruta POST /partidas
+
+    // Rutas de jugadas (protegidas con JWT)
+    procesarJugada($app);   // Ruta POST /jugadas
+    obtenerCartasEnMano($app);     // Ruta GET /usuarios/{usuario}/partidas/{partida}/cartas
 
 
     // Ruta GET /estadisticas (no requiere login)
