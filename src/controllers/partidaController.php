@@ -12,7 +12,6 @@ use Slim\App;
 // No usa namespace, así que con require_once es suficiente
 require_once __DIR__ . '/../config/DB.php';
 
-
 // Middleware JWT para la autenticación 
 use App\middlewares\JwtMiddleware;
 
@@ -53,16 +52,24 @@ function crearPartida(App $app)
 
             // Verificamos que el mazo exista y pertenezca al usuario autenticado
             $stmt = $pdo->prepare("SELECT * FROM mazo WHERE id = :mazo_id AND usuario_id = :usuario_id");
-            $stmt->execute([
-                ':mazo_id' => $idMazo,
-                ':usuario_id' => $usuarioId
-            ]);
+            $stmt->execute([':mazo_id' => $idMazo, ':usuario_id' => $usuarioId]);
             $mazo = $stmt->fetch(PDO::FETCH_ASSOC);
 
             // Si no se encontró el mazo, o no pertenece al usuario, devolvemos error 403
             if (!$mazo) {
                 $response->getBody()->write(json_encode(["error" => "El mazo no pertenece al usuario"]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+
+            // Verificamos si el mazo ya está en uso en otra partida
+            $stmt = $pdo->prepare("SELECT * FROM partida WHERE mazo_id = :mazo_id AND estado = 'en_curso'");
+            $stmt->execute([':mazo_id' => $idMazo]);
+            $partidaEnCurso = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Si el mazo ya está en curso, devolvemos un error
+            if ($partidaEnCurso) {
+                $response->getBody()->write(json_encode(["error" => "Este mazo ya está en uso en otra partida"]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
 
             // Insertamos una nueva partida en la base de datos con estado "en_curso"
