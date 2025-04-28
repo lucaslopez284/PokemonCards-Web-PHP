@@ -15,6 +15,8 @@ use App\middlewares\JwtMiddleware;
 /**
  * Esta función se llama desde index.php y se encarga de registrar todas las rutas que usa la app.
  * Le paso como parámetro la instancia de Slim\App para poder definir endpoints.
+ * 
+ * Ademas, me sirve como resumen de todos los endpoints que incluyo en el proyecto
  */
 function routes($app) {
     // Rutas de autenticación
