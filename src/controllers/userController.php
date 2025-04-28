@@ -23,6 +23,12 @@ use App\middlewares\JwtMiddleware;
 // Permite a un usuario autenticarse con su nombre de usuario y contraseña.
 // Devuelve un JWT válido por 1 hora si las credenciales son correctas.
 // -------------------------------------------------------------
+// -------------------------------------------------------------
+// RUTA: POST /login
+// Permite a un usuario autenticarse con su nombre de usuario y contraseña.
+// Devuelve un JWT válido por 1 hora si las credenciales son correctas,
+// incluyendo la hora de vencimiento en horario argentino.
+// -------------------------------------------------------------
 function login(App $app) {
     $app->post('/login', function (Request $request, Response $response) {
         // Leemos el cuerpo de la solicitud como string
@@ -52,8 +58,10 @@ function login(App $app) {
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
             }
 
-            // Datos del token: ID de usuario y fecha de expiración (una hora desde ahora)
+            // Definimos la clave secreta para firmar el token
             $key = "mi_clave_secreta";
+
+            // Creamos el payload del token con el ID de usuario y la expiración a 1 hora
             $payload = [
                 'usuario_id' => $user['id'],
                 'exp' => time() + 3600
@@ -62,12 +70,21 @@ function login(App $app) {
             // Generamos el token JWT
             $jwt = JWT::encode($payload, $key, 'HS256');
 
-            // Guardamos el token y la fecha de expiración en la base de datos
-            $stmt = $pdo->prepare("UPDATE usuario SET token = ?, vencimiento_token = ? WHERE id = ?");
-            $stmt->execute([$jwt, date('Y-m-d H:i:s', $payload['exp']), $user['id']]);
+            // Convertimos el tiempo de expiración a horario argentino
+            $expTimestamp = $payload['exp'];
+            $expDateTime = new DateTime("@$expTimestamp"); // Creamos objeto DateTime desde timestamp
+            $expDateTime->setTimezone(new DateTimeZone('America/Argentina/Buenos_Aires')); // Ajustamos a Buenos Aires
+            $fechaVencimientoArg = $expDateTime->format('Y-m-d H:i:s'); // Formateamos la fecha
 
-            // Devolvemos el token como respuesta
-            $response->getBody()->write(json_encode(['token' => $jwt]));
+            // Guardamos el token y la fecha de vencimiento en la base de datos
+            $stmt = $pdo->prepare("UPDATE usuario SET token = ?, vencimiento_token = ? WHERE id = ?");
+            $stmt->execute([$jwt, $fechaVencimientoArg, $user['id']]);
+
+            // Devolvemos el token y la fecha de vencimiento como respuesta
+            $response->getBody()->write(json_encode([
+                'token' => $jwt,
+                'vencimiento' => $fechaVencimientoArg
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
         } catch (PDOException $e) {
@@ -82,6 +99,12 @@ function login(App $app) {
 // RUTA: POST /registro
 // Permite registrar un nuevo usuario en la base de datos.
 // Devuelve un token JWT generado automáticamente para el nuevo usuario.
+// -------------------------------------------------------------
+// -------------------------------------------------------------
+// RUTA: POST /registro
+// Permite registrar un nuevo usuario en la base de datos.
+// Devuelve un token JWT generado automáticamente para el nuevo usuario,
+// incluyendo la hora de vencimiento en horario argentino.
 // -------------------------------------------------------------
 function registro(App $app) {
     $app->post('/registro', function (Request $request, Response $response) {
@@ -101,7 +124,7 @@ function registro(App $app) {
             // Establecemos la conexión con la base de datos
             $pdo = DB::getConnection();
 
-            // Validamos que no exista ya un usuario con ese nombre
+            // Verificamos que no exista ya un usuario con el mismo nombre de usuario
             $stmt = $pdo->prepare("SELECT * FROM usuario WHERE usuario = ?");
             $stmt->execute([$data['usuario']]);
             if ($stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -112,38 +135,52 @@ function registro(App $app) {
             // Encriptamos la contraseña antes de guardarla en la base de datos
             $hashedPassword = password_hash($data['password'], PASSWORD_BCRYPT);
 
-            // Insertamos el nuevo usuario con un token vacío (se llenará después)
-            $stmt = $pdo->prepare("INSERT INTO usuario (nombre, usuario, password, token, vencimiento_token) VALUES (?, ?, ?, '', ?)");
+            // Insertamos el nuevo usuario en la base de datos con token vacío
+            $stmt = $pdo->prepare("INSERT INTO usuario (nombre, usuario, password, token, vencimiento_token) VALUES (?, ?, ?, '', '')");
             $stmt->execute([
                 $data['nombre'],
                 $data['usuario'],
-                $hashedPassword,
-                date('Y-m-d H:i:s', strtotime('+1 hour')) // Vencimiento provisorio
+                $hashedPassword
             ]);
 
             // Obtenemos el ID del usuario recién insertado
             $usuarioId = $pdo->lastInsertId();
 
-            // Creamos el JWT para el nuevo usuario
+            // Definimos la clave secreta para firmar el token
             $key = "mi_clave_secreta";
-            $payload = ['usuario_id' => $usuarioId, 'exp' => time() + 3600];
+
+            // Creamos el payload del token con el ID de usuario y la expiración a 1 hora
+            $payload = [
+                'usuario_id' => $usuarioId,
+                'exp' => time() + 3600
+            ];
+
+            // Generamos el token JWT
             $jwt = JWT::encode($payload, $key, 'HS256');
 
-            // Guardamos el token y la expiración en la base
-            $stmt = $pdo->prepare("UPDATE usuario SET token = ?, vencimiento_token = ? WHERE id = ?");
-            $stmt->execute([$jwt, date('Y-m-d H:i:s', $payload['exp']), $usuarioId]);
+            // Convertimos el tiempo de expiración a horario argentino
+            $expTimestamp = $payload['exp'];
+            $expDateTime = new DateTime("@$expTimestamp"); // Creamos objeto DateTime desde timestamp
+            $expDateTime->setTimezone(new DateTimeZone('America/Argentina/Buenos_Aires')); // Ajustamos a Buenos Aires
+            $fechaVencimientoArg = $expDateTime->format('Y-m-d H:i:s'); // Formateamos la fecha
 
-            // Devolvemos el token como respuesta
-            $response->getBody()->write(json_encode(['token' => $jwt]));
+            // Actualizamos el usuario recién creado con el token y la fecha de vencimiento
+            $stmt = $pdo->prepare("UPDATE usuario SET token = ?, vencimiento_token = ? WHERE id = ?");
+            $stmt->execute([$jwt, $fechaVencimientoArg, $usuarioId]);
+
+            // Devolvemos el token y la fecha de vencimiento como respuesta
+            $response->getBody()->write(json_encode([
+                'token' => $jwt,
+                'vencimiento' => $fechaVencimientoArg
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
         } catch (PDOException $e) {
-            // En caso de error con la base de datos, lo mostramos en la respuesta
+            // En caso de error con la base de datos, devolvemos el mensaje de error
             $response->getBody()->write(json_encode(["error" => "Error en la base de datos: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
-
 }
 
 // -------------------------------------------------------------
