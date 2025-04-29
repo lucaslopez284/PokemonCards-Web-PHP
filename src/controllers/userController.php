@@ -38,8 +38,8 @@ function login(App $app) {
         $data = json_decode($body, true);
 
         // Verificamos que el JSON haya sido bien formado y que tenga los campos requeridos
-        if ($data === null || !isset($data['usuario']) || !isset($data['password'])) {
-            $response->getBody()->write(json_encode(["error" => "Datos inválidos"]));
+        if ($data === null || !isset($data['nombre'], $data['usuario'], $data['password'])) {
+            $response->getBody()->write(json_encode(["error" => "Faltan datos necesarios"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
@@ -101,11 +101,7 @@ function login(App $app) {
 // Devuelve un token JWT generado automáticamente para el nuevo usuario.
 // -------------------------------------------------------------
 // -------------------------------------------------------------
-// RUTA: POST /registro
-// Permite registrar un nuevo usuario en la base de datos.
-// Devuelve un token JWT generado automáticamente para el nuevo usuario,
-// incluyendo la hora de vencimiento en horario argentino.
-// -------------------------------------------------------------
+
 function registro(App $app) {
     $app->post('/registro', function (Request $request, Response $response) {
         // Leemos el cuerpo de la solicitud como string
