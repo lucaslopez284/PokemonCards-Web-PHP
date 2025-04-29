@@ -17,13 +17,15 @@ function jugadaServidor(): int {
         // El ID fijo del mazo del servidor (se asume siempre es 1)
         $mazoId = 1;
 
-        // Preparo la consulta para buscar una carta del mazo del servidor que esté en estado 'en_mano'
+        // Preparo la consulta para buscar una carta del mazo del servidor, sin importar el estado
         $sql = "
             SELECT mc.carta_id, mc.id 
             FROM mazo_carta mc
-            WHERE mc.mazo_id = :mazoId AND mc.estado != 'descartado'
+            WHERE mc.mazo_id = :mazoId
+            ORDER BY RAND()
             LIMIT 1
         ";
+
         // Preparo el statement con la consulta SQL
         $stmt = $pdo->prepare($sql);
 
@@ -36,22 +38,12 @@ function jugadaServidor(): int {
         // Obtengo el resultado como un array asociativo
         $carta = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Si no se encontró una carta válida en mano, lanzo una excepción
+        // Si no se encontró una carta (lo cual sería raro), lanzo una excepción
         if (!$carta) {
-            throw new Exception("No hay cartas en mano disponibles para el servidor.");
+            throw new Exception("No hay cartas disponibles en el mazo del servidor.");
         }
 
-        // Armo la consulta para actualizar el estado de la carta seleccionada a 'descartado'
-        $update = "UPDATE mazo_carta SET estado = 'descartado' WHERE id = :id";
-
-        // Preparo el statement de la consulta de actualización
-        $stmtUpdate = $pdo->prepare($update);
-
-        // Asigno el valor del parámetro :id con el ID de la carta encontrada
-        $stmtUpdate->bindParam(':id', $carta['id'], PDO::PARAM_INT);
-
-        // Ejecuto la actualización del estado de la carta
-        $stmtUpdate->execute();
+        // En esta versión NO actualizamos el estado a 'descartado' ya que puede volver a usarse
 
         // Devuelvo el ID de la carta que se jugó
         return (int)$carta['carta_id'];

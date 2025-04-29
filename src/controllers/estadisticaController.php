@@ -2,6 +2,13 @@
 // Incluyo la clase DB que me da la conexión a la base de datos
 require_once __DIR__ . '/../config/DB.php';
 
+// -----------------------------------------------------------------------------
+// ENDPOINT: GET /estadisticas
+// -----------------------------------------------------------------------------
+// Este endpoint permite obtener estadísticas generales de las partidas jugadas
+// por todos los usuarios registrados en el sistema y que hayan jugado, al menos, una partida.
+// -----------------------------------------------------------------------------
+
 
 // Defino la función que registra la ruta GET /estadisticas
 function estadisticas($app) {
