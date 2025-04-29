@@ -44,10 +44,14 @@ function crearMazo(App $app) {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
-        // Verificamos que no haya más de 5 cartas
+        // Verificamos que sean exactamente 5 cartas
         if (count($data['cartas']) > 5) {
             // Si hay más de 5 cartas, devolvemos error 400
             $response->getBody()->write(json_encode(["error" => "Un mazo puede tener hasta 5 cartas"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        } elseif (count($data['cartas']) < 5){
+            // Si hay menos de 5 cartas, tambien devolvemos error 400
+            $response->getBody()->write(json_encode(["error" => "Un mazo no puede tener menos de 5 cartas"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
