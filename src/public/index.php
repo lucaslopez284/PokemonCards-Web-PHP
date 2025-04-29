@@ -21,25 +21,25 @@ $app->addBodyParsingMiddleware();
 // Agregamos el middleware para manejar errores (muestra excepciones y detalles en pantalla)
 $app->addErrorMiddleware(true, true, true);
 
-// ✅ Registramos todas las rutas definidas en el archivo routes.php
+// Registramos todas las rutas definidas en el archivo routes.php
 require_once __DIR__ . '/../routes/routes.php';
 routes($app); // <-- Llamás a la función directamente
 
 
 
-// ✔ Ruta de prueba raíz ('/') que devuelve texto plano
+// Ruta de prueba raíz ('/') que devuelve texto plano
 $app->get('/', function (Request $request, Response $response) {
     $response->getBody()->write("Hola mundo");
     return $response;
 });
 
-// ✔ Ruta de prueba '/hola' que devuelve un mensaje en formato JSON
+// Ruta de prueba '/hola' que devuelve un mensaje en formato JSON
 $app->get('/hola', function (Request $request, Response $response) {
     $data = ["mensaje" => "Hola mundo API"];
     $response->getBody()->write(json_encode($data));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
-// 🚀 Ejecutamos la aplicación Slim (esto siempre debe ir al final)
+// Ejecutamos la aplicación Slim (esto siempre debe ir al final)
 $app->run();
 

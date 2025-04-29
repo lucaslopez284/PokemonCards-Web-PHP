@@ -94,7 +94,8 @@ function procesarJugada(App $app) {
 
             $stmt->execute([$cartaServidorId]);
             $ataqueServidor = $stmt->fetchColumn();  // Ataque de la carta del servidor
-            // Definimos las ventajas
+
+            /* // Definimos las ventajas
             $ventajas = [
                 1 => [3, 6, 7], // Fuego gana a Tierra, Piedra, Planta
                 2 => [1],       // Agua gana a Fuego
@@ -104,15 +105,41 @@ function procesarJugada(App $app) {
                 7 => [2, 3, 6], // Planta gana a Agua, Tierra, Piedra
             ];
 
-            // Aplicamos ventaja si corresponde
-
+            // Aplicamos ventaja si corresponde 
             if (isset($ventajas[$cartaId]) && in_array($cartaServidorId, $ventajas[$cartaId])) {
-                $ataqueUsuario *= 1.3; // Usuario tiene ventaja
+                $ataqueUsuario = $ataqueUsuario * 1.3; // Usuario tiene ventaja
+            } elseif (isset($ventajas[$cartaServidorId]) &&in_array($cartaId, $ventajas[$cartaServidorId])) {
+                $ataqueServidor = $ataqueServidor * 1.3; // Servidor tiene ventaja
+            } */
+
+            // Buscamos si la carta del usuario gana a la carta del servidor
+            $stmt = $pdo->prepare("
+              SELECT COUNT(*) FROM gana_a ga
+              JOIN carta c1 ON ga.atributo_id = c1.atributo_id
+              JOIN carta c2 ON ga.atributo_id2 = c2.atributo_id
+              WHERE c1.id = ? AND c2.id = ?
+            ");
+            $stmt->execute([$cartaId, $cartaServidorId]);
+            $usuarioTieneVentaja = $stmt->fetchColumn() > 0;
+
+            // Buscamos si la carta del servidor gana a la carta del usuario
+            $stmt = $pdo->prepare("
+              SELECT COUNT(*) FROM gana_a ga
+              JOIN carta c1 ON ga.atributo_id = c1.atributo_id
+              JOIN carta c2 ON ga.atributo_id2 = c2.atributo_id
+              WHERE c1.id = ? AND c2.id = ?
+            ");
+            $stmt->execute([$cartaServidorId, $cartaId]);
+            $servidorTieneVentaja = $stmt->fetchColumn() > 0;
+
+            // Aplicamos ventaja si corresponde
+            if ($usuarioTieneVentaja) {
+              $ataqueUsuario *= 1.3;
+            } elseif ($servidorTieneVentaja) {
+              $ataqueServidor *= 1.3;
             }
 
-            if (isset($ventajas[$cartaServidorId]) && in_array($cartaId, $ventajas[$cartaServidorId])) {
-                $ataqueServidor *= 1.3; // Servidor tiene ventaja
-            } 
+
 
             // Determinamos el resultado de la jugada
             if ($ataqueUsuario > $ataqueServidor) {
