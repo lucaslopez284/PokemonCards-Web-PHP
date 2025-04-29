@@ -54,7 +54,7 @@ function login(App $app) {
 
             // Si no se encuentra el usuario o la contraseña no coincide, devolvemos error
             if (!$user || !password_verify($data['password'], $user['password'])) {
-                $response->getBody()->write(json_encode(["error" => "Usuario o contraseña incorrectos"]));
+                $response->getBody()->write(json_encode(["error" => "Datos incorrectos"]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
             }
 
