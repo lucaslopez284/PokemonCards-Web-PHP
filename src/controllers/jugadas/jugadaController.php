@@ -94,6 +94,25 @@ function procesarJugada(App $app) {
 
             $stmt->execute([$cartaServidorId]);
             $ataqueServidor = $stmt->fetchColumn();  // Ataque de la carta del servidor
+            // Definimos las ventajas
+            $ventajas = [
+                1 => [3, 6, 7], // Fuego gana a Tierra, Piedra, Planta
+                2 => [1],       // Agua gana a Fuego
+                3 => [6],       // Tierra gana a Piedra
+                5 => [4, 7],    // Volador gana a Normal y Planta
+                6 => [2],       // Piedra gana a Agua
+                7 => [2, 3, 6], // Planta gana a Agua, Tierra, Piedra
+            ];
+
+            // Aplicamos ventaja si corresponde
+
+            if (isset($ventajas[$cartaId]) && in_array($cartaServidorId, $ventajas[$cartaId])) {
+                $ataqueUsuario *= 1.3; // Usuario tiene ventaja
+            }
+
+            if (isset($ventajas[$cartaServidorId]) && in_array($cartaId, $ventajas[$cartaServidorId])) {
+                $ataqueServidor *= 1.3; // Servidor tiene ventaja
+            } 
 
             // Determinamos el resultado de la jugada
             if ($ataqueUsuario > $ataqueServidor) {
