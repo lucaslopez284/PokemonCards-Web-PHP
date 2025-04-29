@@ -47,7 +47,6 @@ function procesarJugada(App $app) {
         try {
             $pdo = DB::getConnection();  // Establecemos la conexión a la base de datos
 
-
             // Verificamos si la carta pertenece al mazo del usuario en la partida
             $stmt = $pdo->prepare("
                 SELECT mc.estado FROM mazo_carta mc
@@ -136,15 +135,19 @@ function procesarJugada(App $app) {
                 // Determinamos el ganador
                 if ($ganadas > 2) {
                     $ganador = 'usuario';  // Si el usuario gana más de 2 veces
+                    $resultadoUsuario = 'gano';
                 } elseif ($ganadas < 2) {
                     $ganador = 'servidor';  // Si el servidor gana más de 2 veces
+                    $resultadoUsuario = 'perdio';
                 } else {
                     $ganador = 'empate';  // Si hay empate
+                    $resultadoUsuario = 'empato';
                 }
 
                 // Finalizamos la partida
-                $stmt = $pdo->prepare("UPDATE partida SET estado = 'finalizada' WHERE id = ?");
-                $stmt->execute([$partidaId]);
+                $stmt = $pdo->prepare("UPDATE partida SET estado = 'finalizada', el_usuario = ? WHERE id = ?");
+                $stmt->execute([$resultadoUsuario, $partidaId]);
+
 
                 // Reestablecemos el mazo del servidor para que pueda volver a usarse
                 $stmt = $pdo->prepare("
@@ -157,13 +160,14 @@ function procesarJugada(App $app) {
                 $stmt->execute([$partidaId]);
             }
 
-            // Respondemos con los resultados de la jugada
+            // Respondemos con los resultados de la jugada y el número de jugada
             $response->getBody()->write(json_encode([
                 "carta_servidor" => $cartaServidorId,
                 "ataque_usuario" => $ataqueUsuario,
                 "ataque_servidor" => $ataqueServidor,
                 "resultado" => $resultado,
-                "ganador" => $ganador
+                "ganador" => $ganador,
+                "numero_jugada" => $cantidadJugadas // Añadimos el número de jugada
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);  // Código 200
 
@@ -174,6 +178,8 @@ function procesarJugada(App $app) {
         }
     })->add(new JwtMiddleware());  // Añadimos el middleware JWT para la autenticación
 }
+
+
 // -------------------------------------------------------------
 // RUTA: GET /usuarios/{usuario}/partidas/{partida}/cartas
 // Permite obtener las cartas en mano de un usuario en una partida específica.
