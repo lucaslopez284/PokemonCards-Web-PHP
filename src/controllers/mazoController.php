@@ -55,6 +55,12 @@ function crearMazo(App $app) {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
 
+        // NUEVO: Verificamos que no haya cartas repetidas en el arreglo
+        if (count($data['cartas']) !== count(array_unique($data['cartas']))) {
+            $response->getBody()->write(json_encode(["error" => "No se puede repetir una misma carta en el mazo"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
         try {
             // Obtenemos la conexión a la base de datos usando tu clase DB
             $pdo = DB::getConnection();
@@ -115,6 +121,30 @@ function eliminarMazo(App $app) {
         try {
             // Obtenemos conexión
             $pdo = DB::getConnection();
+
+
+            // Obtenemos el ID del usuario desde el token (middleware)
+            $usuarioId = $request->getAttribute('usuario_id');
+
+            // Verificamos si el mazo existe y pertenece al usuario
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM mazo WHERE id = ? AND usuario_id = ?");
+            $stmt->execute([$mazoId, $usuarioId]);
+            $existeYEsDelUsuario = $stmt->fetchColumn();
+
+            if ($existeYEsDelUsuario == 0) {
+               $response->getBody()->write(json_encode(["error" => "El mazo no existe o no pertenece al usuario."]));
+               return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+
+            // Verificamos si el mazo fue usado en alguna partida
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM partida WHERE mazo_id = ?");
+            $stmt->execute([$mazoId]);
+            $usado = $stmt->fetchColumn();
+
+            if ($usado > 0) {
+                $response->getBody()->write(json_encode(["error" => "No se puede eliminar un mazo que ya fue usado en una partida."]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+            }
 
             // Eliminamos primero las cartas del mazo
             $stmt = $pdo->prepare("DELETE FROM mazo_carta WHERE mazo_id = ?");
