@@ -24,11 +24,7 @@ use App\middlewares\JwtMiddleware;
 // Devuelve un JWT válido por 1 hora si las credenciales son correctas.
 // -------------------------------------------------------------
 // -------------------------------------------------------------
-// RUTA: POST /login
-// Permite a un usuario autenticarse con su nombre de usuario y contraseña.
-// Devuelve un JWT válido por 1 hora si las credenciales son correctas,
-// incluyendo la hora de vencimiento en horario argentino.
-// -------------------------------------------------------------
+
 function login(App $app) {
     $app->post('/login', function (Request $request, Response $response) {
         // Leemos el cuerpo de la solicitud como string
