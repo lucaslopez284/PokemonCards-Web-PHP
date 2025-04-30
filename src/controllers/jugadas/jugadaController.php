@@ -206,6 +206,10 @@ function procesarJugada(App $app) {
                 $stmt->execute([$partidaId]);
             }
 
+            if ($ganador == null){
+                $ganador = "En juego";
+            }
+
             // Respondemos con los resultados de la jugada y el número de jugada
             $response->getBody()->write(json_encode([
                 "carta_servidor" => $cartaServidorId,

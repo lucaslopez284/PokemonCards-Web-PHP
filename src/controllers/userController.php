@@ -52,8 +52,8 @@ function login(App $app) {
             $stmt->execute([$data['usuario']]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // Si no se encuentra el usuario o la contraseña no coincide, devolvemos error
-            if (!$user || !password_verify($data['password'], $user['password'])) {
+            // Si no se encuentra el usuario, la contraseña no coincide o el nombre no coincide, devolvemos error
+            if (!$user || !password_verify($data['password'], $user['password']) || $user['nombre'] !== $data['nombre']) {
                 $response->getBody()->write(json_encode(["error" => "Datos incorrectos"]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
             }
