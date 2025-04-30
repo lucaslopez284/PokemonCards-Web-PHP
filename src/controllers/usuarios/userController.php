@@ -11,7 +11,7 @@ use Slim\App;
 
 // Incluimos directamente la clase DB personalizada, ubicada en config/DB.php
 // No usa namespace, así que con require_once es suficiente
-require_once __DIR__ . '/../config/DB.php';
+require_once __DIR__ . '/../../config/DB.php';
 
 
 
@@ -34,7 +34,7 @@ function login(App $app) {
         $data = json_decode($body, true);
 
         // Verificamos que el JSON haya sido bien formado y que tenga los campos requeridos
-        if ($data === null || !isset($data['nombre'], $data['usuario'], $data['password'])) {
+        if ($data === null || !isset($data['usuario'], $data['password'])) {
             $response->getBody()->write(json_encode(["error" => "Faltan datos necesarios"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
         }
@@ -49,7 +49,7 @@ function login(App $app) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             // Si no se encuentra el usuario, la contraseña no coincide o el nombre no coincide, devolvemos error
-            if (!$user || !password_verify($data['password'], $user['password']) || $user['nombre'] !== $data['nombre']) {
+            if (!$user || !password_verify($data['password'], $user['password']) || $user['usuario'] !== $data['usuario']) {
                 $response->getBody()->write(json_encode(["error" => "Datos incorrectos"]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
             }

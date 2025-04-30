@@ -296,16 +296,6 @@ function obtenerCartasEnMano(App $app) {
             // Extraemos el ID del usuario encontrado
             $usuarioRutaId = (int)$usuarioRutaRow['id'];
 
-            // Validamos que el usuario logueado sea el mismo que el usuario solicitado
-            // o el servidor (usuario con ID 1) pueda acceder a cualquier partida
-            if ($usuarioTokenId !== $usuarioRutaId) {
-                $response->getBody()->write(json_encode([ 
-                    "error" => "Acceso denegado", 
-                    "usuarioRutaId" => $usuarioRutaId, 
-                    "usuarioTokenId" => $usuarioTokenId 
-                ]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-            }
 
             // Verificamos que la partida exista y pertenezca al usuario
             $stmt = $pdo->prepare(" 
@@ -333,11 +323,6 @@ function obtenerCartasEnMano(App $app) {
                return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
 
-            // Verificamos que el mazo no pertenezca al servidor (usuario con ID 1)
-            if ($partidaExiste['usuario_id'] === 1) {
-                $response->getBody()->write(json_encode(["error" => "Acceso al mazo del servidor no permitido"]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-            }
 
             // Obtenemos las cartas que están en mano del usuario para esa partida
             $stmt = $pdo->prepare(" 
