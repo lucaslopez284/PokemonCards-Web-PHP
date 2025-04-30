@@ -280,6 +280,7 @@ function obtenerCartasEnMano(App $app) {
         try {
             // Nos conectamos a la base de datos utilizando la clase DB
             $pdo = DB::getConnection();
+    
 
             // Buscamos el ID del usuario a partir de su nombre de usuario
             $stmt = $pdo->prepare("SELECT id FROM usuario WHERE usuario = ?");
@@ -320,6 +321,16 @@ function obtenerCartasEnMano(App $app) {
             if (!$partidaExiste) {
                 $response->getBody()->write(json_encode(["error" => "Partida no encontrada o no pertenece al usuario"]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+
+            // Validamos que la partida esté en estado 'en_curso'
+            $stmt = $pdo->prepare("SELECT estado FROM partida WHERE id = ?");
+            $stmt->execute([$partidaId]);
+            $estadoPartida = $stmt->fetchColumn();
+
+            if ($estadoPartida !== 'en_curso') {
+               $response->getBody()->write(json_encode(["error" => "La partida no está en curso"]));
+               return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
 
             // Verificamos que el mazo no pertenezca al servidor (usuario con ID 1)
