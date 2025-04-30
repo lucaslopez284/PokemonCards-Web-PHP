@@ -172,6 +172,20 @@ function procesarJugada(App $app) {
 
             $ganador = null;
 
+
+            // Verificamos si la partida está finalizada
+            $checkEstado = $pdo->prepare("SELECT estado FROM partida WHERE id = :partida_id");
+            $checkEstado->bindParam(':partida_id', $partidaId);
+            $checkEstado->execute();
+            $estadoPartida = $checkEstado->fetchColumn();
+
+            // Si la partida ya está finalizada, devolvemos un error
+            if ($estadoPartida === 'finalizada') {
+              $response->getBody()->write(json_encode(['error' => 'La partida ya está finalizada.']));
+              return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+            }
+
+
             if ($cantidadJugadas >= 5) {
                 // Obtenemos la cantidad de jugadas ganadas por el usuario
                 $stmt = $pdo->prepare("SELECT COUNT(*) FROM jugada WHERE partida_id = ? AND el_usuario = 'gano'");
