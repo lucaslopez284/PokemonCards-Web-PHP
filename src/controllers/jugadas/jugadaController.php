@@ -47,6 +47,20 @@ function procesarJugada(App $app) {
         try {
             $pdo = DB::getConnection();  // Establecemos la conexión a la base de datos
 
+            // Verificamos que la partida exista y pertenezca al usuario autenticado
+            $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM partida p
+            JOIN mazo m ON p.mazo_id = m.id
+            WHERE p.id = ? AND m.usuario_id = ?
+            ");
+            $stmt->execute([$partidaId, $usuarioId]);
+            $partidaValida = $stmt->fetchColumn();
+
+            if ($partidaValida == 0) {
+              $response->getBody()->write(json_encode(["error" => "Partida no válida o no pertenece al usuario"]));
+              return $response->withHeader('Content-Type', 'application/json')->withStatus(403); // Código 403: prohibido
+            }
+
             // Verificamos si la carta pertenece al mazo del usuario en la partida
             $stmt = $pdo->prepare("
                 SELECT mc.estado FROM mazo_carta mc
