@@ -138,17 +138,31 @@ function registro(App $app) {
             // Obtenemos el ID del usuario recién insertado
             $usuarioId = $pdo->lastInsertId();
 
+            // Obtenemos los detalles del usuario para usarlos en el UPDATE
+            $stmt = $pdo->prepare("SELECT * FROM usuario WHERE id = ?");
+            $stmt->execute([$usuarioId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                $response->getBody()->write(json_encode(["error" => "No se pudo obtener el usuario"]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
             // Definimos la clave secreta para firmar el token
             $key = "mi_clave_secreta";
 
             // Creamos el payload del token con el ID de usuario y la expiración a 1 hora
             $payload = [
-                'usuario_id' => $usuarioId,
+                'usuario_id' => $user['id'],
                 'exp' => time() + 3600
             ];
 
             // Generamos el token JWT
             $jwt = JWT::encode($payload, $key, 'HS256');
+
+            // Verificamos la longitud del token antes de almacenarlo
+            error_log("Token generado: $jwt");
+            error_log("Longitud del token: " . strlen($jwt));
 
             // Convertimos el tiempo de expiración a horario argentino
             $expTimestamp = $payload['exp'];
@@ -158,7 +172,7 @@ function registro(App $app) {
 
             // Actualizamos el usuario recién creado con el token y la fecha de vencimiento
             $stmt = $pdo->prepare("UPDATE usuario SET token = ?, vencimiento_token = ? WHERE id = ?");
-            $stmt->execute([$jwt, $fechaVencimientoArg, $usuarioId]);
+            $stmt->execute([$jwt, $fechaVencimientoArg, $user['id']]);
 
             // Devolvemos el token y la fecha de vencimiento como respuesta
             $response->getBody()->write(json_encode([
@@ -169,7 +183,7 @@ function registro(App $app) {
 
         } catch (PDOException $e) {
             // En caso de error con la base de datos, devolvemos el mensaje de error
-            $response->getBody()->write(json_encode(["error" => "Error en la base de datos: " . $e->getMessage()]));
+            $response->getBody()->write(json_encode(["error" => "Error en la base de datos: " . $e->getMessage()])); 
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
