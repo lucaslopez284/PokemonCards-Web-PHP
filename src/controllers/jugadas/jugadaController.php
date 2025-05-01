@@ -47,19 +47,16 @@ function procesarJugada(App $app) {
         try {
             $pdo = DB::getConnection();  // Establecemos la conexión a la base de datos
 
-            // Verificamos que la partida exista y pertenezca al usuario autenticado
-            $stmt = $pdo->prepare("
-            SELECT COUNT(*) FROM partida p
-            JOIN mazo m ON p.mazo_id = m.id
-            WHERE p.id = ? AND m.usuario_id = ?
-            ");
+            // Verifico que la partida exista y sea del usuario
+            $stmt = $pdo->prepare("SELECT mazo_id FROM partida WHERE id = ? AND estado = 'en_curso' AND usuario_id = ?");
             $stmt->execute([$partidaId, $usuarioId]);
-            $partidaValida = $stmt->fetchColumn();
-
-            if ($partidaValida == 0) {
-              $response->getBody()->write(json_encode(["error" => "Partida no válida o no pertenece al usuario"]));
-              return $response->withHeader('Content-Type', 'application/json')->withStatus(403); // Código 403: prohibido
+            $mazoId = $stmt->fetchColumn();
+    
+            if (!$mazoId) {
+                $response->getBody()->write(json_encode(["error"=> "la partida termino, o no existe o no es de tu propiedad."]));
+                return $response->withHeader("Content-Type", "application/json")->withStatus(400); // Bad Request
             }
+    
 
             // Verificamos si la carta pertenece al mazo del usuario en la partida
             $stmt = $pdo->prepare("
@@ -87,7 +84,7 @@ function procesarJugada(App $app) {
             $cartaServidorId = jugadaServidor();  // Procesamos la jugada en el servidor
 
             // Verificamos que la carta del servidor no sea nula
-            if (!$cartaServidorId) {
+            if ((!$cartaServidorId) || (!$cartaServidorId  == -1)) {
                 $response->getBody()->write(json_encode(["error" => "La carta del servidor no existe"]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(400); // Código 400
             }
@@ -223,16 +220,10 @@ function procesarJugada(App $app) {
                 $stmt->execute([$resultadoUsuario, $partidaId]);
 
 
-                // Reestablecemos el mazo del servidor para que pueda volver a usarse
-                $stmt = $pdo->prepare("
-                    UPDATE mazo_carta mc
-                    JOIN mazo m ON mc.mazo_id = m.id
-                    JOIN partida p ON m.id = p.mazo_id
-                    SET mc.estado = 'en_mano'
-                    WHERE m.usuario_id = 1 AND p.id = ? AND mc.estado = 'descartado'
-                ");
-                $stmt->execute([$partidaId]);
-            }
+                // Vuelvo las cartas al mazo
+                $stmt = $pdo->prepare("UPDATE mazo_carta SET estado = 'en_mazo' WHERE mazo_id IN (?, 1)");
+                $stmt->execute([$mazoId]);
+            } 
 
             if ($ganador == null){
                 $ganador = "En juego";

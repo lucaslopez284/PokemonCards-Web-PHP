@@ -6,59 +6,45 @@ require_once __DIR__ . '/../../config/DB.php';;
  * Función que realiza una jugada automática del servidor.
  * Usa directamente el mazo con ID 1, que corresponde al usuario del servidor (ID 1).
  * Selecciona una carta en estado 'en_mano', la cambia a estado 'descartado' y devuelve su id.
- *
- * @return int ID de la carta jugada, o -1 si ocurre un error
- */
-function jugadaServidor(): int {
-    try {
-        // Obtengo la conexión a la base de datos usando la clase DB
-        $pdo = DB::getConnection();
+ */ 
 
-        // El ID fijo del mazo del servidor (se asume siempre es 1)
-        $mazoId = 1;
+    const SERVER_MAZO_ID = 1;
 
-        // Preparo la consulta para buscar una carta del mazo del servidor, sin importar el estado
-        $sql = "
-            SELECT mc.carta_id, mc.id 
-            FROM mazo_carta mc
-            WHERE mc.mazo_id = :mazoId
-            ORDER BY RAND()
-            LIMIT 1
-        ";
+    function jugadaServidor(): int
+{
+    $db = DB::getConnection(); // Nos conectamos a la base de datos
+    $idServidor = 1; // ID fijo para el servidor
 
-        // Preparo el statement con la consulta SQL
-        $stmt = $pdo->prepare($sql);
+    // Buscamos las cartas disponibles del servidor
+    $stmt = $db->prepare("
+        SELECT mc.carta_id
+        FROM mazo_carta mc
+        JOIN mazo m ON mc.mazo_id = m.id
+        WHERE m.usuario_id = :idServidor
+          AND mc.estado != 'descartado'
+    ");
 
-        // Asigno el valor del parámetro :mazoId a la variable $mazoId
-        $stmt->bindParam(':mazoId', $mazoId, PDO::PARAM_INT);
+    $stmt->bindParam(':idServidor', $idServidor);
+    $stmt->execute();
+    $cartasDisponibles = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Ejecuto la consulta
-        $stmt->execute();
-
-        // Obtengo el resultado como un array asociativo
-        $carta = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // Si no se encontró una carta (lo cual sería raro), lanzo una excepción
-        if (!$carta) {
-            throw new Exception("No hay cartas disponibles en el mazo del servidor.");
-        }
-
-        // En esta versión NO actualizamos el estado a 'descartado' ya que puede volver a usarse
-
-        // Devuelvo el ID de la carta que se jugó
-        return (int)$carta['carta_id'];
-
-    } catch (PDOException $e) {
-        // Capturo errores de PDO y los registro en el log
-        error_log("Error de PDO en jugadaServidor: " . $e->getMessage());
-
-        // Devuelvo -1 para indicar error
-        return -1;
-    } catch (Exception $e) {
-        // Capturo errores generales y los registro en el log
-        error_log("Error en jugadaServidor: " . $e->getMessage());
-
-        // Devuelvo -1 para indicar error
-        return -1;
+    if (empty($cartasDisponibles)) {
+        throw new Exception('No hay cartas disponibles para el servidor'); // Manejo de error si no hay cartas disponibles
+        /*throw es una forma de lanzar una excepción en PHP, lo que detiene la ejecución del script y permite manejar el
+        error en un bloque try-catch.*/
     }
-} 
+
+    // Elegimos una carta al azar
+    $idCartaSeleccionada = $cartasDisponibles[array_rand($cartasDisponibles)]; // array_rand devuelve una clave aleatoria de un array, en este caso de las cartas disponibles
+
+    // Actualizamos el estado de la carta a 'descartado'
+    $stmt = $db->prepare("
+        UPDATE mazo_carta
+        SET estado = 'descartado'
+        WHERE carta_id = :idCarta
+    ");
+    $stmt->bindParam(':idCarta', $idCartaSeleccionada);
+    $stmt->execute();
+
+    return (int) $idCartaSeleccionada;
+}
