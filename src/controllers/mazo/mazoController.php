@@ -230,34 +230,58 @@ function listarMazos(App $app) {
 // Permite actualizar el nombre de un mazo existente
 // ---------------------------------------------------------------------------
 function actualizarMazo(App $app) {
+    // Definimos la ruta PUT /mazos/{mazo} para actualizar un mazo específico
     $app->put('/mazos/{mazo}', function (Request $request, Response $response, array $args) {
-        // Obtenemos el ID del mazo desde la URL
+        // Obtenemos el ID del mazo desde los parámetros de la URL
         $mazoId = $args['mazo'];
 
-        // Leemos el cuerpo de la solicitud
+        // Leemos el cuerpo de la solicitud HTTP y lo convertimos en un array asociativo
         $body = (string) $request->getBody();
         $data = json_decode($body, true);
 
+        // Validamos que el cuerpo JSON no esté vacío y tenga formato válido
+        if (!$data || !is_array($data)) {
+            // Si el JSON está vacío o malformado, devolvemos un error 400
+            $response->getBody()->write(json_encode(["error" => "Datos incorrectos."]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
         try {
-            // Conectamos a la base de datos
+            // Obtenemos la conexión a la base de datos usando nuestra clase DB
             $pdo = DB::getConnection();
 
-            // Si se recibió un nuevo nombre, lo actualizamos
-            if (isset($data['nombre']) && !empty(trim($data['nombre']))) {
-                $stmt = $pdo->prepare("UPDATE mazo SET nombre = ? WHERE id = ?");
-                $stmt->execute([$data['nombre'], $mazoId]);
+            // Recuperamos el ID del usuario desde el middleware JWT
+            $usuarioId = $request->getAttribute('usuario_id');
+
+            // Verificamos que el mazo exista y que pertenezca al usuario autenticado
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM mazo WHERE id = ? AND usuario_id = ?");
+            $stmt->execute([$mazoId, $usuarioId]);
+            $existeYEsDelUsuario = $stmt->fetchColumn();
+
+            // Si el mazo no existe o no le pertenece al usuario, devolvemos un error 403
+            if ($existeYEsDelUsuario == 0) {
+                $response->getBody()->write(json_encode(["error" => "El mazo no existe o no pertenece al usuario."]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
             }
 
-            // Enviamos un mensaje de éxito
+            // Se actualiza el nombre en la BD
+            if (isset($data['nombre'])) {
+                // Ejecutamos el UPDATE para modificar el nombre del mazo
+                $stmt = $pdo->prepare("UPDATE mazo SET nombre = ? WHERE id = ?");
+                $stmt->execute([$data['nombre'], $mazoId]);
+                
+            }
+
+            // Devolvemos una respuesta de éxito con mensaje personalizado
             $response->getBody()->write(json_encode(["mensaje" => "Mazo actualizado correctamente"]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
         } catch (PDOException $e) {
-            // Mostramos el error en caso de que ocurra
-            $response->getBody()->write(json_encode(["error" => "Error al actualizar el mazo: " . $e->getMessage()])); 
+            // Si ocurre una excepción en la base de datos, devolvemos un error 500 con el mensaje
+            $response->getBody()->write(json_encode(["error" => "Error al actualizar el mazo: " . $e->getMessage()]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    })->add(new JwtMiddleware()); // Aplicamos el middleware JWT
+    })->add(new JwtMiddleware()); // Aplicamos el middleware JWT para proteger la ruta
 }
 
 // ---------------------------------------------------------------------------
