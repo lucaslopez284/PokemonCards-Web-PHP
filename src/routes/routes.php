@@ -36,7 +36,7 @@ function routes($app) {
 
     // Rutas de jugadas (protegidas con JWT)
     procesarJugada($app);   // Ruta POST /jugadas
-    obtenerCartasEnMano($app);     // Ruta GET /usuarios/{usuario}/partidas/{partida}/cartas
+    obtenerAtributosServidorEnMano($app);     // Ruta GET /usuarios/{usuario}/partidas/{partida}/cartas
 
     // Rutas de mazos (todas protegidas con JWT)
     crearMazo($app);        // Ruta POST /mazos

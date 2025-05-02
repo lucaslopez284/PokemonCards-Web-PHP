@@ -167,14 +167,26 @@ function procesarJugada(App $app) {
             $jugadaId = $pdo->lastInsertId();  // Obtenemos el ID de la jugada
 
             // Marcamos la carta del usuario como descartada
-            $stmt = $pdo->prepare("
+
+
+           /* $stmt = $pdo->prepare("
                 UPDATE mazo_carta mc
                 JOIN mazo m ON mc.mazo_id = m.id
                 JOIN partida p ON m.id = p.mazo_id
                 SET mc.estado = 'descartado'
                 WHERE mc.carta_id = ? AND m.usuario_id = ? AND p.id = ?
             ");
-            $stmt->execute([$cartaId, $usuarioId, $partidaId]);
+            $stmt->execute([$cartaId, $usuarioId, $partidaId]); */
+
+            $stmt = $pdo->prepare("
+              UPDATE mazo_carta
+              SET estado = 'descartado'
+              WHERE carta_id = ? AND mazo_id = ? AND EXISTS (
+                 SELECT 1 FROM partida WHERE id = ? AND mazo_id = mazo_carta.mazo_id
+              )
+            ");
+            $stmt->execute([$cartaId, $mazoId, $partidaId]);
+
 
             // Verificamos si fue la quinta jugada
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM jugada WHERE partida_id = ?");
@@ -251,99 +263,51 @@ function procesarJugada(App $app) {
 
 // -------------------------------------------------------------
 // RUTA: GET /usuarios/{usuario}/partidas/{partida}/cartas
-// Permite obtener las cartas en mano de un usuario en una partida específica.
-// Se valida que el usuario logueado sea el mismo que el usuario en la URL,
-// y que el mazo no pertenezca al servidor (ID 1).
-// Devuelve las cartas que están en mano de dicho usuario durante esa partida.
+// Permite obtener los atributos de las cartas del servidor en mano en una partida específica.
+// Se valida que el usuario este logueado, y que el mazo pertenezca al servidor (ID 1).
 // -------------------------------------------------------------
-function obtenerCartasEnMano(App $app) {
-    // Ruta GET para obtener cartas en mano de un usuario en una partida
+function obtenerAtributosServidorEnMano(App $app) {
     $app->get('/usuarios/{usuario}/partidas/{partida}/cartas', function (Request $request, Response $response, $args) {
-        // Obtenemos el ID del usuario logueado desde el token JWT
-        $usuarioTokenId = $request->getAttribute('usuario_id');
-        
-        // Obtenemos el nombre de usuario desde los parámetros de la URL
-        $usernameRuta = $args['usuario'];
-        
-        // Convertimos el ID de la partida desde el parámetro de la URL a un entero
-        $partidaId = (int)$args['partida'];
+        // Extraemos el ID del usuario desde la URL
+        $usuarioRutaId = (int)$args['usuario'];
+
+        // Validamos que el ID del usuario en la ruta sea 1 (servidor)
+        if ($usuarioRutaId !== 1) {
+            $response->getBody()->write(json_encode([
+                "error" => "Ruta inválida: solo se permite el usuario con ID 1 (servidor)"
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
 
         try {
-            // Nos conectamos a la base de datos utilizando la clase DB
+            // Conexión a la base de datos
             $pdo = DB::getConnection();
-    
 
-            // Buscamos el ID del usuario a partir de su nombre de usuario
-            $stmt = $pdo->prepare("SELECT id FROM usuario WHERE usuario = ?");
-            $stmt->execute([$usernameRuta]);
-            $usuarioRutaRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            // ID fijo del mazo del servidor
+            $mazoServidorId = 1;
 
-            // Si el usuario no existe, respondemos con un error 404
-            if (!$usuarioRutaRow) {
-                $response->getBody()->write(json_encode(["error" => "Usuario no encontrado"]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
-            }
-
-            // Extraemos el ID del usuario encontrado
-            $usuarioRutaId = (int)$usuarioRutaRow['id'];
-
-
-            // Verificamos que la partida exista y pertenezca al usuario
-            $stmt = $pdo->prepare(" 
-                SELECT p.id, m.usuario_id
-                FROM partida p 
-                JOIN mazo m ON p.mazo_id = m.id 
-                WHERE p.id = ? AND m.usuario_id = ?
+            // Consultamos los atributos de cartas en mano del mazo del servidor
+            $stmt = $pdo->prepare("
+                SELECT DISTINCT a.nombre AS atributo 
+                FROM mazo_carta mc
+                JOIN carta c ON mc.carta_id = c.id
+                JOIN atributo a ON c.atributo_id = a.id
+                WHERE mc.mazo_id = ? AND mc.estado = 'en_mano'
             ");
-            $stmt->execute([$partidaId, $usuarioRutaId]);
-            $partidaExiste = $stmt->fetch(PDO::FETCH_ASSOC);
+            $stmt->execute([$mazoServidorId]);
+            $atributos = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-            // Si la partida no existe o no pertenece al usuario, respondemos con error 404
-            if (!$partidaExiste) {
-                $response->getBody()->write(json_encode(["error" => "Partida no encontrada o no pertenece al usuario"]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
-            }
-
-            // Validamos que la partida esté en estado 'en_curso'
-            $stmt = $pdo->prepare("SELECT estado FROM partida WHERE id = ?");
-            $stmt->execute([$partidaId]);
-            $estadoPartida = $stmt->fetchColumn();
-
-            if ($estadoPartida !== 'en_curso') {
-               $response->getBody()->write(json_encode(["error" => "La partida no está en curso"]));
-               return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
-            }
-
-
-            // Obtenemos las cartas que están en mano del usuario para esa partida
-            $stmt = $pdo->prepare(" 
-                SELECT c.id, c.nombre, c.ataque, a.nombre as atributo 
-                FROM mazo_carta mc 
-                JOIN carta c ON mc.carta_id = c.id 
-                JOIN atributo a ON c.atributo_id = a.id 
-                JOIN mazo m ON mc.mazo_id = m.id 
-                JOIN partida p ON p.mazo_id = m.id 
-                WHERE m.usuario_id = ? AND p.id = ? AND mc.estado = 'en_mano'
-            ");
-            $stmt->execute([$usuarioRutaId, $partidaId]);
-            $cartas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Si no se encontraron cartas en mano, devolvemos un mensaje informativo
-            if (!$cartas || count($cartas) === 0) {
-                $response->getBody()->write(json_encode([
-                    "mensaje" => "No hay cartas en mano para esta partida"
-                ]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-            }
-
-            // Si hay cartas, las devolvemos en la respuesta
-            $response->getBody()->write(json_encode($cartas));
+            // Respondemos con los atributos
+            $response->getBody()->write(json_encode([
+                "Atributos en manos del oponenente" => $atributos
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
         } catch (PDOException $e) {
-            // En caso de error en la base de datos, respondemos con un error 500
-            $response->getBody()->write(json_encode(["error" => "Error: " . $e->getMessage()])); 
+            $response->getBody()->write(json_encode([
+                "error" => "Error de base de datos"
+            ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    })->add(new JwtMiddleware()); // Se añade el middleware JwtMiddleware para validar el token de autenticación
+    });
 }

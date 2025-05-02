@@ -78,9 +78,9 @@ function crearPartida(App $app)
 
             // Obtenemos el ID de la partida recién creada
             $idPartida = $pdo->lastInsertId();
-
+ 
             // Actualizamos el estado de las cartas del mazo a "en_mano"
-            $stmt = $pdo->prepare("UPDATE mazo_carta SET estado = 'en_mano' WHERE mazo_id = ?");
+            $stmt = $pdo->prepare("UPDATE mazo_carta SET estado = 'en_mano' WHERE mazo_id IN (?, 1)");
             $stmt->execute([$idMazo]);
 
             // Obtenemos la información de las cartas del mazo actual
