@@ -198,6 +198,12 @@ function listarMazos(App $app) {
             $stmt->execute([$usuarioId]);
             $mazos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Si no hay mazos, devolvemos mensaje informativo
+            if (empty($mazos)) {
+                $response->getBody()->write(json_encode(["mensaje" => "El usuario no tiene ningún mazo creado."]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            }
+
             // Enviamos el resultado como JSON
             $response->getBody()->write(json_encode($mazos));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
