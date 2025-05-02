@@ -271,6 +271,15 @@ function obtenerAtributosServidorEnMano(App $app) {
         // Extraemos el ID del usuario desde la URL
         $usuarioRutaId = (int)$args['usuario'];
 
+        // Obtenemos el ID del usuario autenticado desde el atributo JWT
+        $usuarioId = $request->getAttribute('usuario_id');
+
+        // Si no hay usuario autenticado, devolvemos error 401
+        if (!$usuarioId) {
+            $response->getBody()->write(json_encode(["error" => "Usuario no autenticado"]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+        }
+
         // Validamos que el ID del usuario en la ruta sea 1 (servidor)
         if ($usuarioRutaId !== 1) {
             $response->getBody()->write(json_encode([
@@ -309,5 +318,5 @@ function obtenerAtributosServidorEnMano(App $app) {
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-    });
+    })->add(new JwtMiddleware());  // Añadimos el middleware JWT para la autenticación
 }
