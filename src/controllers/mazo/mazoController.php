@@ -191,7 +191,15 @@ function listarMazos(App $app) {
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
             }
 
-            $usuarioId = $usuario['id'];
+
+            // Decodificamos el token (ya debe haber pasado el middleware JWT)
+            $usuarioId = $request->getAttribute('usuario_id');
+
+            // Verificamos que el ID del token coincida con el ID del usuario solicitado
+            if ($usuario != $usuarioId) {
+                $response->getBody()->write(json_encode(["error" => "No autorizado para acceder a los mazos de este usuario."]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
 
             // Traemos todos los mazos de ese usuario
             $stmt = $pdo->prepare("SELECT * FROM mazo WHERE usuario_id = ?");
