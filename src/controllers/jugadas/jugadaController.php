@@ -209,17 +209,27 @@ function procesarJugada(App $app) {
             }
 
 
-            if ($cantidadJugadas >= 5) {
-                // Obtenemos la cantidad de jugadas ganadas por el usuario
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM jugada WHERE partida_id = ? AND el_usuario = 'gano'");
+            if ($cantidadJugadas == 5) {
+                // Se inicializan los contadores
+                $ganadas = 0;
+                $perdidas = 0;
+
+                // Se obtienen los resultados de todas las jugadas
+                $stmt = $pdo->prepare("SELECT el_usuario FROM jugada WHERE partida_id = ?");
                 $stmt->execute([$partidaId]);
-                $ganadas = $stmt->fetchColumn();
+                $resultados = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+                foreach ($resultados as $res) {
+                  if ($res === 'gano') $ganadas++;
+                  if ($res === 'perdio') $perdidas++;
+                }
+                
 
                 // Determinamos el ganador
-                if ($ganadas > 2) {
+                if ($ganadas > $perdidas) {
                     $ganador = 'usuario';  // Si el usuario gana más de 2 veces
                     $resultadoUsuario = 'gano';
-                } elseif ($ganadas < 2) {
+                } elseif ($ganadas < $perdidas) {
                     $ganador = 'servidor';  // Si el servidor gana más de 2 veces
                     $resultadoUsuario = 'perdio';
                 } else {

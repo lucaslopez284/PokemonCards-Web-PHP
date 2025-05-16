@@ -15,7 +15,7 @@ class DB {
             try {
                 self::$connection = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
                 self::$connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                echo json_encode(['success' => 'Connected to the database successfully.']);
+                
             } catch (PDOException $e) {
                 die(json_encode(['error' => $e->getMessage()])); //Sino, arroja mensaje por excepción
             }
